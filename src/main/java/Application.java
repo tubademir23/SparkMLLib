@@ -2,6 +2,7 @@
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.ml.regression.LinearRegressionModel;
+import org.apache.spark.ml.regression.LinearRegressionTrainingSummary;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -18,7 +19,7 @@ public class Application {
 				.option("header", "true").option("inferSchema", "true")
 				.load(".\\src\\data\\test.csv");
 
-		raw_data.show();
+		raw_data.show(40);;
 		VectorAssembler features_vector = new VectorAssembler()
 				.setInputCols(new String[]{"Ay"}).setOutputCol("features");
 
@@ -29,7 +30,7 @@ public class Application {
 		Dataset<Row> final_data = transform.select("features", "Satis");
 
 		Dataset<Row>[] datasets = final_data
-				.randomSplit(new double[]{0.9, 0.1});
+				.randomSplit(new double[]{0.7, 0.3});
 
 		// 0.7, 0.3 -> 23487.517
 		// 0.9, 0.1 -> 25406.119
@@ -40,8 +41,13 @@ public class Application {
 		lr.setLabelCol("Satis");
 		LinearRegressionModel model = lr.fit(train_data);
 
+		// for excel: change code training test ratio to 1.0 and all transform
+		// not est_data use train_data and get all prediction values.
+		LinearRegressionTrainingSummary summary = model.summary();
+		System.out.println(summary.r2());
+
 		Dataset<Row> transform_test = model.transform(test_data);
-		// transform_test.show();
+		transform_test.show(30);
 
 		Dataset<Row> transform_new_test = model.transform(transfor_new_data);
 		transform_new_test.show();
