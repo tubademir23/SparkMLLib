@@ -1,6 +1,7 @@
 
 import org.apache.spark.ml.classification.NaiveBayes;
 import org.apache.spark.ml.classification.NaiveBayesModel;
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.ml.regression.LinearRegression;
@@ -67,6 +68,12 @@ public class Application {
 
 		Dataset<Row> predictions = model.transform(test_data);
 		predictions.show();
+
+		MulticlassClassificationEvaluator evaluator = new MulticlassClassificationEvaluator()
+				.setLabelCol("label").setPredictionCol("prediction")
+				.setMetricName("accuracy");
+		double evaluate = evaluator.evaluate(predictions);
+		System.out.println("accuracy result" + evaluate);
 	}
 	public static void LineerRegressionSample() {
 		sparkSession = SparkSession.builder().master("local")
