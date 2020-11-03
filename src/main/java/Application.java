@@ -1,4 +1,7 @@
 
+import org.apache.spark.ml.classification.NaiveBayes;
+import org.apache.spark.ml.classification.NaiveBayesModel;
+import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.ml.regression.LinearRegressionModel;
@@ -9,8 +12,66 @@ import org.apache.spark.sql.SparkSession;
 public class Application {
 	static SparkSession sparkSession;
 	public static void main(String[] args) {
+		// LineerRegressionSample();
+		NaiveBayesSample();
+	}
+	public static void NaiveBayesSample() {
+		// features: hava,sicaklik,nem,ruzgar,basketbol
+		sparkSession = SparkSession.builder().master("local")
+				.appName("spark-mllib-naive-bayes").getOrCreate();
+
+		Dataset<Row> raw_data = sparkSession.read().format("csv")
+				.option("header", "true").option("inferSchema", "true")
+				.load(".\\src\\data\\basketball.csv");
+		// raw_data.show();
+		StringIndexer indexHava = new StringIndexer().setInputCol("hava")
+				.setOutputCol("hava_cat");
+		StringIndexer indexSicaklik = new StringIndexer()
+				.setInputCol("sicaklik").setOutputCol("sicaklik_cat");
+		StringIndexer indexNem = new StringIndexer().setInputCol("nem")
+				.setOutputCol("nem_cat");
+		StringIndexer indexRuzgar = new StringIndexer().setInputCol("ruzgar")
+				.setOutputCol("ruzgar_cat");
+		// predicted column will be label not category
+		StringIndexer indexBasketbol = new StringIndexer()
+				.setInputCol("basketbol").setOutputCol("label");
+
+		Dataset<Row> transformHavaData = indexHava.fit(raw_data)
+				.transform(raw_data);
+		Dataset<Row> transformSicaklikData = indexSicaklik
+				.fit(transformHavaData).transform(transformHavaData);
+		Dataset<Row> transformNemData = indexNem.fit(transformSicaklikData)
+				.transform(transformSicaklikData);
+		Dataset<Row> transformRuzgarData = indexRuzgar.fit(transformNemData)
+				.transform(transformNemData);
+		Dataset<Row> transformResultData = indexBasketbol
+				.fit(transformRuzgarData).transform(transformRuzgarData);
+		// transformResultData.show();
+
+		VectorAssembler vectorAssembler = new VectorAssembler()
+				.setInputCols(new String[]{"hava_cat", "sicaklik_cat",
+						"nem_cat", "ruzgar_cat", "label"})
+				.setOutputCol("features");
+		Dataset<Row> transform = vectorAssembler.transform(transformResultData);
+		// transform.show();
+		Dataset<Row> final_data = transform.select("label", "features");
+		// final_data.show();
+		Dataset<Row>[] datasets = final_data
+				.randomSplit(new double[]{0.7, 0.3});
+
+		Dataset<Row> train_data = datasets[0];
+		Dataset<Row> test_data = datasets[1];
+		NaiveBayes nb = new NaiveBayes();
+		nb.setSmoothing(1);
+		NaiveBayesModel model = nb.fit(train_data);
+
+		Dataset<Row> predictions = model.transform(test_data);
+		predictions.show();
+	}
+	public static void LineerRegressionSample() {
 		sparkSession = SparkSession.builder().master("local")
 				.appName("spark-mllib").getOrCreate();
+
 		Dataset<Row> raw_data = sparkSession.read().format("csv")
 				.option("header", "true").option("inferSchema", "true")
 				.load(".\\src\\data\\sales.csv");
@@ -51,7 +112,6 @@ public class Application {
 
 		Dataset<Row> transform_new_test = model.transform(transfor_new_data);
 		transform_new_test.show();
-
 	}
 
 }
